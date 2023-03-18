@@ -2,6 +2,12 @@ import {useState,} from 'react'
 import {AiFillEyeInvisible,AiFillEye} from  'react-icons/ai'
 import { Link } from 'react-router-dom';
 import OAuth from '../components/OAuth';
+import {getAuth, createUserWithEmailAndPassword, updateProfile} from "firebase/auth"
+import {db} from '../firebase'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+
 const SignUp = () => {
   const [showPassword,setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -10,10 +16,31 @@ const SignUp = () => {
     password: '',
   });
   const {name,email, password} =formData;
+  const navigate = useNavigate()
   function onChange(e){
     setFormData((prevState)=>({
       ...prevState,
     [e.target.id]: e.target.value}));
+  }
+  async function onSubmit(e){
+    e.preventDefault();//prevent loading page because we are working on react  
+    try {
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      updateProfile(auth.currentUser,{
+        displayName: name
+      });
+      const user =userCredential.user;
+      const formDataCopy = {...formData};
+      delete formDataCopy.password;
+      formDataCopy.timestamp =serverTimestamp();// the time that the person is registered
+      await setDoc(doc(db,"users", user.uid), formDataCopy)//save it in the database
+      // toast.success("Sign Up was successfully!")
+      navigate("/")
+
+    } catch (error) {
+      toast.error("Something went wrong with the registration!");
+    }
   }
   return (
     <section>
@@ -23,7 +50,7 @@ const SignUp = () => {
           <img src='https://images.unsplash.com/flagged/photo-1564767609342-620cb19b2357?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1073&q=80'  alt='key' className='w-full rounded-2xl'/>
         </div>
         <div className='w-full md:w-[67%] lg:w-[40%] lg:ml-20'>
-          <form>
+          <form onSubmit={onSubmit}>
             <input 
             type="text" 
             id='name' value={name} 
